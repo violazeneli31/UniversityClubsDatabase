@@ -1,0 +1,352 @@
+<?php
+mysqli_report(MYSQLI_REPORT_OFF); // PHP 8.1+: show database errors as messages instead of crashing the page
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php"); // Redirect unauthenticated users
+    exit();
+}
+
+$is_admin = ($_SESSION['role'] === 'admin'); // Assuming the user's role is stored in the session
+
+if (isset($_POST['logout'])) {
+    // Unset session variables and destroy the session
+    session_unset();
+    session_destroy();
+    header("Location: login.php"); // Redirect to login page after logout
+    exit();
+}
+
+// Database credentials
+$servername = "localhost";
+$username = "root"; // Default XAMPP username
+$password = ""; // Default XAMPP password (empty)
+$dbname = "epoka_clubs"; // Database name
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$conn2 = new mysqli($servername, $username, $password, "epoka_clubs");
+
+// Variables to store messages and selected table
+$query_message = "";
+$executed_query = "";
+$table_name = "";
+$result = null;
+
+// Execute query from dropdown
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['execute_query'])) {
+    $table = $_POST['table_selection'];
+    $table_name = ucfirst(str_replace("_", " ", $table)); // Format table name for display
+    if($table == "users"){
+        $sql = "SELECT id, name, surname, email, gender, username, role FROM $table";
+        $result = $conn2->query($sql);
+    }
+    else{
+        $sql = "SELECT * FROM $table";
+        $result = $conn->query($sql);
+    }
+    // Display success or error message
+    if ($result) {
+        $query_message = "Query executed successfully.";
+    } else {
+        $query_message = "Error: " . $conn->error;
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epoka Clubs Database</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="script.js"></script>
+    <script>
+        function toggleTriangle(button) {
+            const triangle = button.querySelector(".triangle");
+            triangle.classList.toggle("down");
+        }
+    </script>
+    <style>
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+    }
+
+    .sidebar {
+        width: 180px;
+        height: 100vh;
+        background-color: #1E2A3B;
+        color: #fff;
+        padding: 20px;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+        position: fixed;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Space between menu and logout button */
+    }
+
+    .sidebar h2 {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+
+    .sidebar button {
+        background: none;
+        border: none;
+        color: #fff;
+        padding: 10px;
+        text-align: left;
+        width: 100%;
+        cursor: pointer;
+        transition: background 0.5s;
+        font-size: 1em; /* Increase font size */
+        border-radius: 5px; /* Add border radius */
+        position: relative;
+    }
+
+    .sidebar button:hover {
+        background-color: hsl(215, 32.60%, 22.5%);
+    }
+
+    .sidebar img{
+        height: 60px;
+        width: 175px;
+        margin: 10px 0px 30px 0px;
+    }
+
+    .triangle {
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-bottom: 10px solid white; /* Downward triangle */
+        position: absolute;
+        right: 10px; /* Position to the right */
+        top: 50%;
+        transform: translateY(-50%) rotate(180deg); /* Center vertically */
+    }
+
+    .triangle.down {
+        transform: translateY(-50%); /* Rotate for upward triangle */
+    }
+
+    .content {
+        flex-grow: 1;
+        padding: 20px;
+        background: linear-gradient(135deg, #6a82fb, #fc5c7d);
+        min-height: 100vh;
+        text-align: center;
+        margin-left: 210px; /* Add margin to the left to avoid overlap with sidebar */
+    }
+
+    table {
+        width: 80%;
+        margin: 30px auto;
+        border-collapse: collapse;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        background-color: #fff; /* White background for the table */
+    }
+
+    th, td {
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        text-align: left;
+    }
+
+    th {
+        background-color: #1E2A3B;
+        color: #fff;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f4f4f4; /* Light gray background for even rows */
+    }
+
+    tr:nth-child(odd) {
+        background-color: #e9e9e9; /* Slightly darker gray for odd rows */
+    }
+
+    tr:hover {
+        background-color: #d1d1d1; /* Slightly darker color on row hover */
+    }
+
+    /* Style for the select dropdown */
+    select {
+        padding: 5px; /* Decrease padding for height reduction */
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 1em;
+        margin-right: 10px; /* Add some space between the select and button */
+        height: 35px; /* Set a specific height for the combo box */
+    }
+
+    /* Style for the execute button */
+    button[type="submit"][name="execute_query"] {
+        background-color: #28a745; /* Green background color */
+        color: white; /* Button text color */
+        border: none; /* Remove border */
+        padding: 10px 15px; /* Padding for the button */
+        border-radius: 5px; /* Rounded corners */
+        cursor: pointer; /* Pointer cursor on hover */
+        transition: background 0.3s; /* Transition for hover effect */
+    }
+
+    button[type="submit"][name="execute_query"]:hover {
+        background-color: #218838; /* Darker green on hover */
+    }
+
+    #addUser, #editUser, #deleteUser {
+        display: none;
+    }
+
+    .dropdown_buttons{
+        background-color: hsl(215, 32.60%, 20%);            
+        border-radius: 5px;
+    }
+
+    .logout-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        margin-bottom: 30px;
+        color: #fff;
+        font-size: 1em;
+        padding: 10px;
+        cursor: pointer;
+        transition: background 0.5s;
+        border-radius: 5px;
+        background-color: hsl(0, 89.90%, 57.30%) !important;
+    }
+
+    .logout-button:hover {
+        background-color: hsl(0, 89.90%, 67.30%) !important;
+    }
+
+    .logout-button i {
+        margin-right: 10px; /* Space between icon and text */
+    }
+
+    #submenu {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        left: 91%;
+        top: 162px;
+        width: 160px;
+        background-color: hsl(215, 32.60%, 20%) !important;
+        border-radius: 5px;
+        display: none;
+    }
+</style>
+</head>
+<body>
+    <div class="sidebar">
+        <div>
+            <img src="Epoka.png" alt="epoka"></img>
+            <button id="showTables" style="background-color: hsl(215, 32.60%, 25.5%);">Show Tables</button>
+            <button id="addRecord">Add record</button>
+            <div id="submenu">
+                <button id="addAdvisor">Advisor</button>
+                <button id="addClub">Club</button>
+                <button id="addDoSEmployee">DoS Employee</button>
+                <button id="addEvent">Event</button>
+                <button id="addIsMemberOf">Is Member of</button>
+                <button id="addParticipatesIn">Participates in</button>
+                <button id="addReport">Report</button>
+                <button id="addStudents">Students</button>
+                <button id="addSupervises">Supervises</button>
+            </div>
+            <button id="executeQueries">Execute queries</button>
+            <button id="newQuery">New query</button>
+            <?php if ($is_admin): ?>
+                <button id="userOptions" onclick="toggleTriangle(this)">User Options<div class="triangle"></div></button>
+                <div class="dropdown_buttons">
+                    <button id="addUser">Add User</button>
+                    <button id="editUser">Edit User</button>
+                    <button id="deleteUser">Delete User</button>
+                </div>
+            <?php endif; ?>
+        </div>
+        <div>
+            <form method="POST">
+                <button type="submit" name="logout" class="logout-button">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="content">
+        <h1>Epoka Club Database</h1>
+
+        <!-- Dropdown to select table and execute query -->
+        <form action="" method="post">
+            <label for="table_selection">Show Table: </label>
+            <select id="table_selection" name="table_selection" style="padding-right: 20px;" required>
+                <option value="" disabled selected hidden>Select a table</option>
+                <option value="advisor">advisor</option>
+                <option value="club">club</option>
+                <option value="dosemployee">dosemployee</option>
+                <option value="event">event</option>
+                <option value="ismemberof">ismemberof</option>
+                <option value="participatesin">participatesin</option>
+                <option value="report">report</option>
+                <option value="students">students</option>
+                <option value="supervises">supervises</option>
+                
+            </select>
+            <button type="submit" name="execute_query">Execute</button>
+        </form>
+
+        <!-- Dynamically display table header based on selected table -->
+        <h2><?php echo $table_name ? "$table_name" : ""; ?></h2>
+
+        <!-- Display data if query was successful -->
+        <?php if ($result && $result->num_rows > 0): ?>
+        <table>
+            <thead>
+                <tr>
+                    <?php
+                    // Dynamically display column headers
+                    $fields = $result->fetch_fields();
+                    foreach ($fields as $field) {
+                        echo "<th>" . htmlspecialchars($field->name) . "</th>";
+                    }
+                    ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                // Output data for each row
+                while ($row = $result->fetch_assoc()) {
+                    echo "<tr>";
+                    foreach ($row as $column) {
+                        echo "<td>" . htmlspecialchars($column) . "</td>";
+                    }
+                    echo "</tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+        <?php elseif ($table_name): ?>
+            <p>No records found.</p>
+        <?php endif; ?>
+
+        <?php
+        // Close the connection
+        $conn->close();
+        ?>
+    </div>
+</body>
+</html>
